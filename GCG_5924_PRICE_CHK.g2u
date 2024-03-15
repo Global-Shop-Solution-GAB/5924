@@ -1,0 +1,67 @@
+Program.Sub.Preflight.Start
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.Try
+V.Local.sPart.Declare
+V.Local.sRev.Declare
+V.Local.sPrtRev.Declare
+V.Local.sLoc.Declare
+V.Local.sSQL.Declare
+V.Local.sDateInvc.Declare
+V.Local.sMSG.Declare
+'TJS Mar 2020
+'Customer: Maloney Technical Products
+'BUSINESS CASE:The compay has had issues in the past with parts 
+'being added to sales orders with old pricing.
+'SOLUTION: We will add a check to assist in preventing this issue 
+'from occuring in the future.
+'Hook: 12045, Passed Variables: 000052(PART NO), 000053(PART REV), 000054(PART LOC)
+
+V.Local.sPart.Set(V.Passed.000052.Trim)
+V.Local.sRev.Set(V.Passed.000053.Trim)
+V.Local.sLoc.Set(V.Passed.000054.Trim)
+
+F.Intrinsic.String.RPad(V.Local.sPart.Trim," ",17,V.Local.sPart)
+F.Intrinsic.String.RPad(V.Local.sRev.Trim," ",3,V.Local.sRev)
+F.Intrinsic.String.Build("{0}{1}",V.Local.sPart,V.Local.sRev,V.Local.sPrtRev)
+
+F.ODBC.Connection!conts.OpenCompanyConnection
+
+F.Intrinsic.String.Build("select Top 1 DATE_INVOICE from V_ORDER_HIST_LINE where RTRIM(PART) = '{0}' and RTRIM(LOCATION) = '{1}' order by DATE_INVOICE desc;",V.Local.sPrtRev.Trim,V.Local.sLoc.Trim,V.Local.sSQL)
+
+F.ODBC.Connection!conts.ExecuteAndReturn(V.Local.sSQL,V.Local.sSQL)
+
+F.ODBC.Connection!conts.Close
+
+F.Intrinsic.Control.If(V.Local.sSQL.Trim,=,"")
+	F.Intrinsic.String.Build("INVENTORY HISTORY COST AND PRICE MUST BE REVIEWED!{1}{1}Part  '{0}'  has never been invoiced.",V.Local.sPrtRev.Trim,V.Ambient.NewLine,V.Local.sMSG)
+	F.Intrinsic.UI.Msgbox(V.Local.sMSG,"NEEDS ATTENTION!")
+	F.Intrinsic.Control.End
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.String.Format(V.Local.sSQL,"MM/DD/YYYY",V.Local.sDateInvc)
+
+F.Intrinsic.Date.DateAdd(D,180,V.Local.sDateInvc,V.Local.sDateInvc)
+
+F.Intrinsic.Control.If(V.Local.sDateInvc,<,V.Ambient.Date)
+	F.Intrinsic.String.Build("INVENTORY HISTORY COST AND PRICE MUST BE REVIEWED!{1}{1}Part  '{0}'  has not been invoiced in over 6 months.",V.Local.sPrtRev.Trim,V.Ambient.NewLine,V.Local.sMSG)
+	F.Intrinsic.UI.Msgbox(V.Local.sMSG,"NEEDS ATTENTION!")
+	F.Intrinsic.Control.End
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(Error,"SubRoutine",V.Ambient.CurrentSubroutine,"eNumber",V.Ambient.ErrorNumber,"eDescription",V.Ambient.ErrorDescription)
+F.Intrinsic.Control.EndTry
+Program.Sub.Main.End
+
+
+Program.Sub.Error.Start
+V.Local.sError.Declare
+V.Local.iRet.Declare
+V.Local.sSep.Declare
+
+F.Intrinsic.String.Build("-------------------------------------------------------------------------------------",,V.Local.sSep)
+F.Intrinsic.String.Build("({5}-{6}){0}{7}{0}Project: {4}{0}{7}{0}Sub: {1}{0}Error: {2}, {3}", V.Ambient.NewLine, V.Args.SubRoutine, V.Args.eNumber, V.Args.eDescription,V.Caller.ScriptFile,V.Ambient.Date, V.Ambient.Time,V.Local.sSep,V.Local.sError)
+F.Intrinsic.UI.Msgbox(V.Local.sError,"Error",V.Local.iRet)
+Program.Sub.Error.End
